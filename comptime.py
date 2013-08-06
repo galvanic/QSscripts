@@ -5,7 +5,8 @@ Script to process and display the time I spend on the computer.
 """
 import sys
 import pylab
-import datetime
+from matplotlib import dates
+from datetime import datetime
 from code import interact
 # interact(local=locals())
 
@@ -24,17 +25,10 @@ def word2bool(alist):
 			new.append(False)
 	return new
 
-def div(el):
-	return map(int, [ el[:2], el[3:5], el[6:] ])
-
-def string2datetime(alist):
-	new = list()
-	for date, time in alist:
-		year, month, day  = div(date)
-		hour, minute, sec = div(time)
-		dt = datetime.datetime(2000+year, month, day, hour, minute, sec)
-		new.append(dt)
+def str2datetime(alist):
+	new = [datetime.strptime(string, "%y/%m/%d %H:%M:%S") for string in alist]
 	return new
+
 
 def parseTime(filename):
 	"""
@@ -50,7 +44,7 @@ def parseTime(filename):
 		for i, row in enumerate(f):
 			# if i > 100:
 			# 	break
-			print i, "\t", row,
+			# print i, "\t", row,
 			line = row.strip("\n").split("\t\t")
 			lines.append(line)
 
@@ -59,9 +53,9 @@ def parseTime(filename):
 
 	activity, date, time = zip(*lines)
 
-	datetimes = zip(date, time)
+	datetime_strings = [ d+" "+t for d, t in zip(date, time) ]
 
-	return string2datetime(datetimes), word2bool(activity)
+	return str2datetime(datetime_strings), word2bool(activity)
 
 
 def makeGraph(data):
@@ -72,30 +66,42 @@ def makeGraph(data):
 	eg.    ___|‾‾|_|‾|___|‾‾‾‾‾‾|___|‾|_
 		Off								 Time ->
 
-	It appears this plot is called a step plot.
+	It appears that this plot type is called a step plot.
 	"""
 	x, y = data
-	# x = range(len(y))
+	# for the triangular filling
 	y1 = y
 	y2 = [0]*len(y)
+	
+	fig = pylab.figure()
+	ax = fig.add_subplot(111)
+
 	# steps-post means the step goes up when Wake
 	# 					and it goes down when Sleep
 	pylab.plot_date(x, y, fmt="", xdate=True, ydate=False,
-					linewidth=2, drawstyle="steps-post")
+					drawstyle="steps-post")
 	
 	pylab.ylim([-2,3])
-	# pylab.xlim([-1,7])
 	pylab.fill_between(x, y1, y2, alpha=0.1, edgecolor="w")
 	pylab.title('Time I spend on the computer')
 	pylab.xlabel('Time')
 	pylab.ylabel('Activity')
-	pylab.show()
+
+	ax.xaxis.set_minor_locator(dates.HourLocator())
+	ax.xaxis.set_major_locator(dates.DayLocator())
+	xlabels = ax.xaxis.set_major_formatter(dates.DateFormatter("%a %m/%d"))
+	ax.xaxis.grid(True, which="major")
+	pylab.subplots_adjust(bottom=0.1)
+
+	for label in ax.get_xticklabels():
+		label.set_horizontalalignment('left')
+	# pylab.show()
+	pylab.savefig("plot1.png", bbox_inches=0)
 
 	return
 
 
 def main():
-	# y = [ int(char) for char in "0110100" ]
 	data = parseTime(FILE)
 	makeGraph(data)
 	return
@@ -103,27 +109,5 @@ def main():
 if __name__ == "__main__":
 
 	sys.exit(main())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
