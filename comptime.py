@@ -138,7 +138,7 @@ def data4plot(data):
 	return start_times, end_times, intervals
 
 
-def makeBarPlot(data):
+def makeBarPlot(data, invert_time=True):
 	"""
 	data:	3-tuple of lists
 			start_times:	list of datetime instances for event start
@@ -187,6 +187,8 @@ def makeBarPlot(data):
 
 	## Customize the y axis
 	ax.set_ylim([0, 24*60])
+	if invert_time:
+		ax.invert_yaxis()									# time axis is from 00:00 (top) to 23:59 (bottom) like in iCal
 	ax.yaxis.set_minor_locator(plt.MultipleLocator(60))		# a tick mark every hour
 	ax.yaxis.set_major_locator(plt.MultipleLocator(4*60))	# a tick label every 4 hours
 	# format y axis tick labels as Hour:Minute using a custom formatter
@@ -197,7 +199,7 @@ def makeBarPlot(data):
 	ax.yaxis.set_major_formatter(ff(m2hm))					# the custom formatter
 
 
-	plt.savefig("barplot2.png")
+	plt.savefig("barplot.png")
 	return
 
 
