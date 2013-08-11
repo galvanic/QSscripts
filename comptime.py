@@ -2,12 +2,23 @@
 """
 Script to process and display the time I spend on the computer.
 
+Improvements
+
+- Make an API
+- Give possibility to add interval of date for the graph
+- Have a better way to control size of plot vs. size of image
+- Have a quick possibility to change between background image or color
+- Add something to show time more specifically ?
+	- Try a dotted white line like for the diseases graph
+- Maybe present the data like the disease graph to compare different days ?
 """
-import sys
+import sys, os
 import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter as ff
+import Image
+
 from code import interact
 # interact(local=locals())
 
@@ -138,7 +149,7 @@ def data4plot(data):
 	return start_times, end_times, intervals
 
 
-def makeBarPlot(data, invert_time=True):
+def makeBarPlot(data, plotname="barplot.png", plot_size=(9,7), invert_time=True):
 	"""
 	data:	3-tuple of lists
 			start_times:	list of datetime instances for event start
@@ -154,7 +165,7 @@ def makeBarPlot(data, invert_time=True):
 	Places were there are a lot of lines as opposed to one block
 	shows I was very attentive! [ironic]
 	"""
-	start_times, end_times, intervals = data
+	start_times, end_times, intervals = data				# we won't be using end_times
 
 	## x axis date data
 	days = [ dt.date() for dt in start_times ]
@@ -166,15 +177,34 @@ def makeBarPlot(data, invert_time=True):
 	starttimes_mins = [ dt2m(dt) for dt in start_times ]	# bottom point of the bars
 
 
-	## Set up the plot
-	fig = plt.figure()						# figsize in inches
+	## Set up the plot ##
+
+
+	## Decide colors
+	bgcolor		= "#DBFFFD" #FDF6E3"
+	plot_color 	= "#FDF6E3"
+	label_color = "#D33582"
+	spine_color = "#A0A1A1"
+	bar_color	= "#224596"	#"#279186"
+
+	fig = plt.figure(figsize=plot_size, dpi=96)				# figsize in inches
 	ax = fig.add_subplot(1, 1, 1)
 
 	## bar is (x, height of bar, bottom of bar)
-	plt.bar(days, interval_mins, bottom=starttimes_mins, align="edge", edgecolor='none')
+	plt.bar(days, interval_mins, bottom=starttimes_mins,
+			align="center", color=bar_color, alpha=0.8, edgecolor='none', linewidth=0)
 
+	
+	## Customize the plot ##
 
-	## Customize the plot
+	ax.spines['top'].set_position(('outward', 4))
+
+	## Show or hide the spines, ticks and labels
+	ax.axes.get_yaxis().set_visible(False)					# hides targeted axis labels & ticks
+	plt.tick_params(size=0)									# affects only the major ticks, can add kwarg "axis=x" to affect only one axis
+	for position, spine in ax.spines.iteritems():			# spines is a dict, position is the key
+		# if position == 'top': continue						# doesn't affect top spine
+		spine.set_visible(False)							# hides spine
 
 	## Customize the x axis
 	# set limits for the x axis
@@ -182,8 +212,9 @@ def makeBarPlot(data, invert_time=True):
 	last_day  = days[-1]
 	# ax.set_xlim([first_day, last_day + datetime.timedelta(days=1)])
 	ax.xaxis.set_major_formatter(mdates.DateFormatter('%a %e')) # format x axis tick labels as "mmm dd"
-	for label in ax.get_xticklabels():						# align the labels to the left of their column (the right of the tick label)
-		label.set_horizontalalignment('left')
+	ax.xaxis.tick_top()										# put the x axis date labels on top
+	for label in ax.get_xticklabels():
+		label.set_horizontalalignment('center')
 
 	## Customize the y axis
 	ax.set_ylim([0, 24*60])
@@ -198,15 +229,64 @@ def makeBarPlot(data, invert_time=True):
 		return '%(h)2d:%(m)02d' % {'h':h,'m':m}				# hours don't show a leading 0 zero
 	ax.yaxis.set_major_formatter(ff(m2hm))					# the custom formatter
 
+	## Set colors, sizes and transparency
+	fig.patch.set_facecolor(bgcolor)
+	fig.patch.set_alpha(0.5)
+	ax.patch.set_facecolor(plot_color)
+	ax.patch.set_alpha(0.0)
+	ax.spines['top'].set_color(spine_color)
+	ax.spines['top'].set_linewidth(1)
+	ax.spines['top'].set_alpha(1.0)
+	# set colors for the x axis date labels					# for some reason, this doesn't work if I put it above in the colour section	
+	for label in ax.get_xticklabels():
+		label.set_color(label_color)
+		label.set_fontsize(15)								# default is 12
+		label.set_fontweight("1000")
+	for label in ax.xaxis.get_majorticklabels():
+		label.set_family("SimHei")							# Trebuchet MS works well enough too
 
-	plt.savefig("barplot.png")
+
+	plt.savefig(plotname, dpi=96, bbox_inches="tight",
+				transparent=False)#, facecolor=fig.get_facecolor())
+				# If we don't specify the edgecolor and facecolor for the figure when
+				# saving with savefig, it will override the value we set earlier
 	return
+
+def addLayer(image, layer, mask=None):
+	if not mask:
+		mask = layer
+	image.paste(layer, (0,0), mask)
+	return image
+
+def addBg2plot(plot_name, bg_name):
+	plot_image = Image.open(plot_name)
+	bg_image = Image.open(bg_name)
+	# check if sizes are the same, otherwise resize
+	plsize = plot_image.size
+	bgsize = bg_image.size
+	if plsize != bgsize:
+		print "Plot size is", plsize, "and background size is", bgsize 
+		print "Resizing background image."
+		bg_image = bg_image.resize(plsize)
+	return addLayer(bg_image, plot_image)
 
 
 def main():
+	plotim = "barplot.png"
+	bg = "mer.jpg"
+	w, h = Image.open(bg).size
+	
 	data = parseTime(FILE)
-	makeStepPlot(data)
-	makeBarPlot(data4plot(data))
+	# makeStepPlot(data)
+
+	data = data4plot(data)
+	makeBarPlot(data, plotim, (12,9))
+
+	final = addBg2plot(plotim, bg)
+	os.remove(plotim)
+	final.save("barplot.png")
+
+
 	print "Done !"
 	return
 
