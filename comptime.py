@@ -4,13 +4,21 @@ Script to process and display the time I spend on the computer.
 
 Improvements
 
-- Make an API
-- Give possibility to add interval of date for the graph
+- Give possibility to add interval of date for the graph (yes done! a bit à l'arrache)
 - Have a better way to control size of plot vs. size of image
 - Have a quick possibility to change between background image or color
 - Add something to show time more specifically ?
 	- Try a dotted white line like for the diseases graph
 - Maybe present the data like the disease graph to compare different days ?
+
+Bugs
+
+- Make an automatic bug remover to find incoherences
+	Incoherences occur when:
+	- There are time differences
+	- The computer crashes and needs to be rebooted
+	- The computer is on from before mignight to after
+		(the interval doesn't register, explaining the weird on states that start at 2am !)
 """
 import sys, os
 import datetime
@@ -42,24 +50,29 @@ def str2datetime(alist):
 	return new
 
 
-def parseTime(filename):
+def parseTime(filename, startdate=None, enddate=None):
 	"""
 	filename:	file with time data in lines
 
-	Returns a tuple of lists of data, in this case, a list of
-	datetime instances and a list of booleens representing computer
-	state being entered at that time (asleep or awake).
-	The order of the lists is very important so that we know which
-	time corresponds to which event.
+	Returns: a tuple of lists of data, in this case:
+		- a list of datetime instances
+		- a list of booleens representing computer state being entered at that
+			time (asleep or awake).
+
+		The order of the lists is very important so that we know which
+		time corresponds to which event.
 	"""
 	rows = list()
 
 	with open(filename) as f:
 		for i, row in enumerate(f):
-			# if i > 100:
-			# 	break
-			# print i, "\t", row,
 			line = row.strip("\n").split("\t\t")
+			date = datetime.datetime.strptime(line[1], "%y/%m/%d")
+			# need to handle cases where there are no start or end dates specified
+			if date < startdate:
+				continue
+			if date > enddate:
+				break
 			rows.append(line)
 
 	event, date, time = zip(*rows)
@@ -141,7 +154,8 @@ def data4plot(data):
 	# end_times will always be one short since the computer is ON to process this data
 	# so we add the most recent time to endtime so that the latest bar appears
 	end_times.append(datetime.datetime.now().replace(microsecond=0))
-	assert len(start_times) == len(end_times)
+	if len(start_times) != len(end_times):
+		raise ValueError, "The amount of start times (%d) do not match up with the amount of end times (%d)" % (len(start_times), len(end_times))
 
 	# calculate the elapsed time
 	intervals = [ sleep - wake for wake, sleep in zip(start_times, end_times) ]
@@ -200,7 +214,7 @@ def makeBarPlot(data, plotname="barplot.png", plot_size=(9,7), invert_time=True)
 	ax.spines['top'].set_position(('outward', 4))
 
 	## Show or hide the spines, ticks and labels
-	ax.axes.get_yaxis().set_visible(False)					# hides targeted axis labels & ticks
+	# ax.axes.get_yaxis().set_visible(False)					# hides targeted axis labels & ticks
 	plt.tick_params(size=0)									# affects only the major ticks, can add kwarg "axis=x" to affect only one axis
 	for position, spine in ax.spines.iteritems():			# spines is a dict, position is the key
 		# if position == 'top': continue						# doesn't affect top spine
@@ -211,6 +225,7 @@ def makeBarPlot(data, plotname="barplot.png", plot_size=(9,7), invert_time=True)
 	first_day = days[0]
 	last_day  = days[-1]
 	# ax.set_xlim([first_day, last_day + datetime.timedelta(days=1)])
+	ax.xaxis.set_major_locator(mdates.DayLocator(bymonthday=range(1,32)))
 	ax.xaxis.set_major_formatter(mdates.DateFormatter('%a %e')) # format x axis tick labels as "mmm dd"
 	ax.xaxis.tick_top()										# put the x axis date labels on top
 	for label in ax.get_xticklabels():
@@ -245,7 +260,6 @@ def makeBarPlot(data, plotname="barplot.png", plot_size=(9,7), invert_time=True)
 	for label in ax.xaxis.get_majorticklabels():
 		label.set_family("SimHei")							# Trebuchet MS works well enough too
 
-
 	plt.savefig(plotname, dpi=96, bbox_inches="tight",
 				transparent=False)#, facecolor=fig.get_facecolor())
 				# If we don't specify the edgecolor and facecolor for the figure when
@@ -271,16 +285,21 @@ def addBg2plot(plot_name, bg_name):
 	return addLayer(bg_image, plot_image)
 
 
-def main():
+def main(startdate):
 	plotim = "barplot.png"
 	bg = "mer.jpg"
 	w, h = Image.open(bg).size
 	
-	data = parseTime(FILE)
+	enddate = datetime.datetime.now()
+	if startdate:
+		startdate = str2datetime(["13/08/%d 00:00:00" % (startdate)])[0]
+	else: # the last week
+		startdate = enddate - datetime.timedelta(days=7)
+	data = parseTime(FILE, startdate, enddate)
 	# makeStepPlot(data)
 
 	data = data4plot(data)
-	makeBarPlot(data, plotim, (12,9))
+	makeBarPlot(data, plotim, (13,9))
 
 	final = addBg2plot(plotim, bg)
 	os.remove(plotim)
@@ -292,7 +311,7 @@ def main():
 
 if __name__ == "__main__":
 
-	sys.exit(main())
+	sys.exit(main(sys.argv[1]))
 
 
 # stats
