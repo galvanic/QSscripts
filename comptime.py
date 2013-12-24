@@ -31,7 +31,7 @@ from code import interact
 # interact(local=locals())
 
 
-FILE = "/Users/jc5809/Dropbox/Programming/Projects/QS_scripts/comptimelog.txt"
+FILE = "comptimelog.txt"
 
 ON  = ["Startup", "Start", "Wake"]
 OFF = ["Sleep", "Shutdown", "Restart"]
@@ -199,7 +199,7 @@ def makeBarPlot(data, plotname="barplot.png", plot_size=(9,7), invert_time=True)
 	plot_color 	= "#FDF6E3"
 	label_color = "#D33582"
 	spine_color = "#A0A1A1"
-	bar_color	= "#224596"	#"#279186"
+	bar_color	= "#224596"	#279186"
 
 	fig = plt.figure(figsize=plot_size, dpi=96)				# figsize in inches
 	ax = fig.add_subplot(1, 1, 1)
@@ -286,13 +286,15 @@ def addBg2plot(plot_name, bg_name):
 
 
 def main(startdate):
+	"""Input the day of the month you want the graph to start at"""
+
 	plotim = "barplot.png"
 	bg = "mer.jpg"
 	w, h = Image.open(bg).size
 	
 	enddate = datetime.datetime.now()
 	if startdate:
-		startdate = str2datetime(["13/08/%d 00:00:00" % (startdate)])[0]
+		startdate = str2datetime(["13/12/%s 00:00:00" % (startdate)])[0]	# hmm not very flexible here
 	else: # the last week
 		startdate = enddate - datetime.timedelta(days=7)
 	data = parseTime(FILE, startdate, enddate)
